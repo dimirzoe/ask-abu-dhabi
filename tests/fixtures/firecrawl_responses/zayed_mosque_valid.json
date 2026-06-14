@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "data": {
+    "markdown": "# Sheikh Zayed Grand Mosque\n\nWelcome to the Sheikh Zayed Grand Mosque, one of the largest mosques in the world and a key place of worship in Abu Dhabi. Visiting hours are 9:00 am - 10:00 pm for tourists, with free admission for all visitors. Modest dress is required and abayas are available on loan. Free guided tours introduce the architecture, the reflective pools, and the world's largest hand-knotted carpet.",
+    "html": "<h1>Sheikh Zayed Grand Mosque</h1><p>One of the largest mosques in the world.</p>",
+    "metadata": {
+      "title": "Sheikh Zayed Grand Mosque — Official Site",
+      "ogTitle": "Sheikh Zayed Grand Mosque",
+      "sourceURL": "https://www.szgmc.gov.ae/en/",
+      "statusCode": 200
+    }
+  }
+}

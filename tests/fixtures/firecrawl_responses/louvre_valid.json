@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "data": {
+    "markdown": "# Louvre Abu Dhabi\n\nLouvre Abu Dhabi is a universal museum on Saadiyat Island, displaying art and artefacts that span human civilisation. The museum is open Tuesday - Sunday from 10:00 am - 6:30 pm and is closed on Mondays. Admission is AED 63 for adults, with free entry for children under a set age. The iconic dome creates a celebrated 'rain of light' effect over the galleries.",
+    "html": "<h1>Louvre Abu Dhabi</h1><p>A universal museum.</p>",
+    "metadata": {
+      "title": "Louvre Abu Dhabi — Plan Your Visit",
+      "ogTitle": "Louvre Abu Dhabi",
+      "sourceURL": "https://www.louvreabudhabi.ae/en",
+      "statusCode": 200
+    }
+  }
+}
