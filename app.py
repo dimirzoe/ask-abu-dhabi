@@ -8,6 +8,8 @@ session and passed explicitly.
 
 from __future__ import annotations
 
+import os
+
 import streamlit as st
 
 from core.analytics import AnalyticsStore
@@ -26,10 +28,29 @@ _PERSONA_LABELS = {
 _LANGUAGE_LABELS = {None: "Auto-detect", Language.EN: "English", Language.AR: "العربية"}
 
 
+def _load_cloud_secrets() -> None:
+    """Bridge Streamlit Cloud secrets into environment variables.
+
+    Locally the app reads keys from ``.env``; on Streamlit Community Cloud there
+    is no ``.env`` — secrets live in ``st.secrets``. This copies any top-level
+    scalar secrets into ``os.environ`` (without overriding existing env vars) so
+    :func:`core.config.load_settings` (pydantic-settings) picks them up. No-op
+    when no secrets file is present.
+    """
+    try:
+        secrets = st.secrets
+    except Exception:
+        return
+    for key, value in secrets.items():
+        if isinstance(value, (str, int, float, bool)):
+            os.environ.setdefault(key, str(value))
+
+
 def _bootstrap() -> None:
     """Build and cache settings, provider, attractions, and analytics once."""
     if "settings" in st.session_state:
         return
+    _load_cloud_secrets()
     settings = load_settings()
     attractions, kb_status = load_knowledge_base(settings)
     st.session_state.settings = settings
