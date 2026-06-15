@@ -38,10 +38,13 @@ def _load_cloud_secrets() -> None:
     when no secrets file is present.
     """
     try:
-        secrets = st.secrets
+        # Accessing st.secrets raises StreamlitSecretNotFoundError when no
+        # secrets file exists (e.g. local runs) — read inside the try so it
+        # becomes a clean no-op rather than crashing.
+        items = list(st.secrets.items())
     except Exception:
         return
-    for key, value in secrets.items():
+    for key, value in items:
         if isinstance(value, (str, int, float, bool)):
             os.environ.setdefault(key, str(value))
 
