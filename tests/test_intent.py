@@ -39,6 +39,21 @@ def test_off_topic_general_knowledge(baseline_attractions):
     assert not is_on_topic("What is the capital of France?", baseline_attractions)
 
 
+def test_generic_word_substring_does_not_trigger(baseline_attractions):
+    # "fee" must not fire inside "coffee"; generic words must not pass alone.
+    assert not is_on_topic("Where can I buy the best coffee in London?", baseline_attractions)
+    assert not is_on_topic("Is my local supermarket open on Sundays?", baseline_attractions)
+    assert not is_on_topic("What is the price of a Tesla Model 3?", baseline_attractions)
+
+
+def test_stopword_in_title_does_not_match(baseline_attractions):
+    # The word "in" (present in "Culture & Etiquette in Abu Dhabi") must not
+    # make unrelated queries on-topic.
+    assert not is_on_topic("What's the weather like in Tokyo today?", baseline_attractions)
+    assert not is_on_topic("Recommend a stock to invest in.", baseline_attractions)
+    assert match_attraction("weather in tokyo today", baseline_attractions) is None
+
+
 def test_partial_keyword_token_does_not_match(baseline_attractions):
     # "world" alone must NOT pull in Yas Island via the "ferrari world" keyword.
     query = "Who won the football World Cup last year?"

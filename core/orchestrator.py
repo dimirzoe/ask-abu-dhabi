@@ -17,7 +17,7 @@ from typing import Optional
 from core.analytics import AnalyticsStore
 from core.config import Settings
 from core.intent import detect_language, is_on_topic
-from core.knowledge_base import match_attraction
+from core.knowledge_base import rank_attractions
 from core.prompts import (
     build_system_prompt,
     build_user_prompt,
@@ -28,6 +28,7 @@ from core.schema import (
     AskRequest,
     AskResponse,
     KBStatus,
+    Role,
 )
 from providers.base import LLMProvider
 
@@ -59,11 +60,37 @@ def process_query(
         LLMError: Propagated from the provider when generation fails.
     """
     language = detect_language(request.query, forced=request.language)
-    match = match_attraction(request.query, attractions)
-    attraction_id = match[0] if match else None
-    attraction = match[1] if match else None
 
-    on_topic = is_on_topic(request.query, attractions)
+    # Build a short context window (recent user turns + current query) so that
+    # follow-ups like "i am from russia" inherit the topic of the prior question
+    # for both on-topic gating and attraction matching.
+    recent_user_turns = [m.content for m in request.history if m.role == Role.USER]
+    context_query = " ".join([*recent_user_turns[-2:], request.query]).strip()
+
+    # Resolve the topic from the NEAREST query that matches: try the current
+    # query first, then progressively widen to include one or two prior user
+    # turns, stopping at the first window that matches. This prevents a stale
+    # earlier topic (e.g. a mosque question) from out-ranking the current one
+    # (e.g. a visa follow-up) and mislabelling the official link.
+    ranked: list[tuple[str, Attraction, int]] = []
+    for text in (
+        request.query,
+        " ".join([*recent_user_turns[-1:], request.query]),
+        " ".join([*recent_user_turns[-2:], request.query]),
+    ):
+        ranked = rank_attractions(text, attractions)
+        if ranked:
+            break
+
+    attraction_id = ranked[0][0] if ranked else None
+    attraction = ranked[0][1] if ranked else None
+    # Primary topic plus one strong secondary (phrase-level match, score >= 3)
+    # so cross-topic questions — e.g. "bus to the mosque" — carry both the
+    # destination and the transport facts.
+    context_attractions = [a for _id, a, _score in ranked[:1]]
+    context_attractions += [a for _id, a, score in ranked[1:2] if score >= 3]
+
+    on_topic = is_on_topic(context_query, attractions)
 
     # --- Off-topic short-circuit: never touch the LLM ---
     if not on_topic:
@@ -99,12 +126,15 @@ def process_query(
             kb_status=kb_status.value,
         )
 
-    system_prompt = build_system_prompt(language)
+    system_prompt = build_system_prompt(
+        language, allow_general_knowledge=settings.llm_allow_general_knowledge
+    )
     user_prompt = build_user_prompt(
         query=request.query,
-        attraction=attraction,
+        attractions=context_attractions,
         language=language,
         persona=request.persona,
+        history=request.history,
     )
     answer = provider.generate(
         system_prompt=system_prompt,

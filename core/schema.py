@@ -37,6 +37,20 @@ class KBStatus(str, Enum):
     FAILED = "FAILED"
 
 
+class Role(str, Enum):
+    """Author of a conversation turn."""
+
+    USER = "user"
+    ASSISTANT = "assistant"
+
+
+class Message(BaseModel):
+    """A single prior conversation turn passed in for context."""
+
+    role: Role
+    content: str
+
+
 class Attraction(BaseModel):
     """A single knowledge-base entry describing an attraction or topic."""
 
@@ -75,6 +89,10 @@ class AskRequest(BaseModel):
     language: Optional[Language] = Field(
         default=None,
         description="Force a response language; None means auto-detect.",
+    )
+    history: list[Message] = Field(
+        default_factory=list,
+        description="Prior turns (oldest→newest), excluding the current query.",
     )
 
 

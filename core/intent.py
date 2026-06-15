@@ -20,18 +20,21 @@ from core.schema import Attraction, Language
 
 _ARABIC_RE = re.compile(r"[؀-ۿ]")
 
-# Broad tourism / Abu Dhabi signal vocabulary. Lowercase EN + AR forms.
+# Abu Dhabi tourism signal vocabulary. Lowercase EN + AR forms. Deliberately
+# excludes over-generic standalone words (where/open/price/fee/hotel/family/kids/
+# address/restaurant/weekend) that would fire on unrelated queries — a real
+# Abu Dhabi query carries an attraction name or a domain term ("visa", "abu
+# dhabi", "tourism"), or matches an attraction directly.
 ON_TOPIC_TERMS: frozenset[str] = frozenset(
     {
         # English
         "abu dhabi", "uae", "emirate", "emirates", "mosque", "louvre", "museum",
         "palace", "beach", "corniche", "island", "yas", "saadiyat", "ferrari",
         "warner", "heritage", "fort", "hosn", "qasr", "attraction", "attractions",
-        "visit", "tour", "tourist", "tourism", "ticket", "tickets", "fee", "fees",
-        "price", "hours", "opening", "open", "location", "address", "transport",
-        "metro", "bus", "taxi", "airport", "transfer", "visa", "etiquette",
-        "dress", "culture", "things to do", "where", "how to get", "directions",
-        "hotel", "restaurant", "family", "kids", "weekend", "itinerary",
+        "visit", "tour", "tourist", "tourism", "ticket", "tickets",
+        "sightseeing", "transport", "metro", "taxi", "airport", "transfer",
+        "visa", "etiquette", "dress code", "culture", "things to do",
+        "how to get", "directions", "itinerary", "hafilat",
         # Arabic
         "أبوظبي", "أبو ظبي", "الإمارات", "مسجد", "اللوفر", "متحف", "قصر",
         "شاطئ", "كورنيش", "جزيرة", "ياس", "السعديات", "تراث", "حصن",
@@ -39,6 +42,21 @@ ON_TOPIC_TERMS: frozenset[str] = frozenset(
         "مواصلات", "حافلة", "مطار", "تأشيرة", "آداب", "ثقافة",
     }
 )
+
+_WORD_RE = re.compile(r"[a-z]+")
+
+
+def _term_matches(term: str, lowered: str, words: set[str]) -> bool:
+    """Whole-word (EN) / phrase / substring (AR) match for an on-topic term.
+
+    Single ASCII words match only as whole words (so "fee" does not fire on
+    "coffee"); multi-word phrases and Arabic terms use substring matching.
+    """
+    if " " in term:
+        return term in lowered
+    if term.isascii():
+        return term in words
+    return term in lowered
 
 
 def detect_language(text: str, forced: Language | None = None) -> Language:
@@ -69,6 +87,7 @@ def is_on_topic(query: str, attractions: dict[str, Attraction]) -> bool:
         the static off-topic redirect (``False``).
     """
     lowered = query.lower()
-    if any(term in lowered for term in ON_TOPIC_TERMS):
+    words = set(_WORD_RE.findall(lowered))
+    if any(_term_matches(term, lowered, words) for term in ON_TOPIC_TERMS):
         return True
     return match_attraction(query, attractions) is not None

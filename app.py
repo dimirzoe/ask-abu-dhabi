@@ -15,7 +15,7 @@ from core.config import load_settings
 from core.exceptions import AskAbuDhabiError
 from core.kb_loader import load_knowledge_base
 from core.orchestrator import process_query
-from core.schema import AskRequest, KBStatus, Language, Persona
+from core.schema import AskRequest, KBStatus, Language, Message, Persona, Role
 from providers.factory import create_provider
 
 _PERSONA_LABELS = {
@@ -97,11 +97,20 @@ def main() -> None:
     if not prompt:
         return
 
+    # Build conversation history from prior turns (before appending this one).
+    history = [
+        Message(role=Role(m["role"]), content=m["content"])
+        for m in st.session_state.messages
+        if m["role"] in ("user", "assistant")
+    ]
+
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    request = AskRequest(query=prompt, persona=persona, language=language)
+    request = AskRequest(
+        query=prompt, persona=persona, language=language, history=history
+    )
     with st.chat_message("assistant"):
         with st.spinner("Thinking…"):
             try:

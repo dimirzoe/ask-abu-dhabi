@@ -65,7 +65,7 @@ SOURCES: list[Source] = [
         attraction_id="corniche",
         title="Abu Dhabi Corniche",
         category="Waterfront",
-        url="https://visitabudhabi.ae/en/places-to-visit/abu-dhabi-corniche",
+        url="https://visitabudhabi.ae/en/where-to-go/regions/abu-dhabi-city",
         nudge="Rent a bike along the cycle path and finish with sunset views over the "
         "skyline.",
     ),
@@ -81,7 +81,7 @@ SOURCES: list[Source] = [
         attraction_id="heritage_village",
         title="Heritage Village",
         category="Cultural Site",
-        url="https://visitabudhabi.ae/en/places-to-visit/heritage-village",
+        url="https://visitabudhabi.ae/en/things-to-do/culture/heritage/heritage-village",
         nudge="Visit the workshops to watch metalwork and pottery, then enjoy the "
         "breakwater views back toward the city.",
     ),
@@ -89,7 +89,7 @@ SOURCES: list[Source] = [
         attraction_id="airport_transfer",
         title="Zayed International Airport Transfers",
         category="Transport",
-        url="https://www.zayedinternationalairport.ae/en/to-from",
+        url="https://www.zayedinternationalairport.ae/en",
         nudge="Pre-book an airport taxi or check the A1 express bus timings before you "
         "land.",
     ),
@@ -97,7 +97,7 @@ SOURCES: list[Source] = [
         attraction_id="public_transport",
         title="Abu Dhabi Public Transport",
         category="Transport",
-        url="https://www.itc.gov.ae/",
+        url="https://admobility.gov.ae/en/pb-bus-service",
         nudge="Pick up a Hafilat card for buses and keep it topped up for seamless "
         "travel across the city.",
     ),
@@ -113,7 +113,7 @@ SOURCES: list[Source] = [
         attraction_id="culture_etiquette",
         title="Culture & Etiquette in Abu Dhabi",
         category="Travel Essentials",
-        url="https://u.ae/en/information-and-services/social-affairs/customs-and-traditions",
+        url="https://u.ae/en/information-and-services/visiting-and-exploring-the-uae/social-responsibility",
         nudge="Dress modestly at religious and government sites and ask before "
         "photographing people.",
     ),

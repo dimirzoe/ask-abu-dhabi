@@ -35,8 +35,10 @@ def transform(source: Source, fields: dict[str, str]) -> Attraction:
     """
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     title = source.title  # Trust curated title over scraped metadata.
+    # Use the cleaned prose ("text"), falling back to raw markdown for older
+    # callers/fixtures that only provide it.
     context = _context_snippet(
-        fields.get("markdown", ""),
+        fields.get("text") or fields.get("markdown", ""),
         fallback=f"{title} — {_CHECK_OFFICIAL}.",
     )
     keyword_seed = f"{title} {source.category} {context}"

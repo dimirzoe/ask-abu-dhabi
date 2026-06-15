@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "data": {
+    "markdown": "[Skip to main content](https://www.louvreabudhabi.ae/en#content) ![What's On This Summer](https://www.louvreabudhabi.ae/img/a.jpg) ![Close](https://www.louvreabudhabi.ae/img/close.svg) [Menu](https://www.louvreabudhabi.ae/menu) [Search](https://www.louvreabudhabi.ae/search) 0-94 ![icon](https://www.louvreabudhabi.ae/icon.png)",
+    "html": "<div>nav chrome only</div>",
+    "metadata": {
+      "title": "Louvre Abu Dhabi",
+      "sourceURL": "https://www.louvreabudhabi.ae/en",
+      "statusCode": 200
+    }
+  }
+}

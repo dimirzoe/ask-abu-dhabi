@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     llm_max_tokens: int = Field(default=1024, gt=0, le=8192)
     llm_timeout_seconds: int = Field(default=30, gt=0, le=300)
     llm_max_retries: int = Field(default=3, ge=0, le=6)
+    # KB-first + AI fallback: when True, the model may supplement missing KB
+    # details from its general knowledge (with a "verify on official site" note).
+    # When False, answers are strictly limited to the knowledge base.
+    llm_allow_general_knowledge: bool = True
 
     # --- Knowledge base ---
     kb_path: str = "data/knowledge_base.json"

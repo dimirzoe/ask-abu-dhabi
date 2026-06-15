@@ -10,15 +10,77 @@ from __future__ import annotations
 
 import re
 
-# Loose patterns to opportunistically surface common facts from page text.
+# Hours must look like a real clock-time range — at least one side carries a
+# colon time (10:00) or an am/pm marker. This deliberately rejects bare numeric
+# ranges such as "0-94" that leak from CSS/markup dimensions.
 _HOURS_RE = re.compile(
-    r"(\d{1,2}(:\d{2})?\s*(am|pm)?\s*[-–to]+\s*\d{1,2}(:\d{2})?\s*(am|pm)?)",
+    r"\b("
+    r"\d{1,2}:\d{2}\s*(?:am|pm)?\s*(?:[-–—]|to)\s*\d{1,2}:\d{2}\s*(?:am|pm)?"
+    r"|\d{1,2}\s*(?:am|pm)\s*(?:[-–—]|to)\s*\d{1,2}\s*(?:am|pm)"
+    r")\b",
     re.IGNORECASE,
 )
 _FEE_RE = re.compile(
-    r"(free admission|free entry|aed\s*\d+(\.\d+)?|\d+\s*aed|dhs?\s*\d+)",
+    r"(free admission|free entry|aed\s*\d+(?:\.\d+)?|\d+\s*aed|dhs?\s*\d+)",
     re.IGNORECASE,
 )
+
+# Markdown / HTML artifacts to strip out of scraped prose.
+_IMAGE_RE = re.compile(r"!\[[^\]]*\]\([^)]*\)")
+_LINK_RE = re.compile(r"\[([^\]]*)\]\([^)]*\)")
+_URL_RE = re.compile(r"https?://\S+")
+_MD_SYMBOLS_RE = re.compile(r"[#>*_`|~%+/\\]+")
+_WS_RE = re.compile(r"\s+")
+# Noise baked into inline SVG/icon exports (e.g. "Created with Sketch"). These
+# multi-word phrases arrive glued to surrounding words ("ShapeCreated"), so no
+# \b anchors. The standalone word "icon" is handled separately WITH a boundary
+# so we never damage real words like "iconic".
+_SVG_NOISE_RE = re.compile(
+    r"(created with sketch|combined shape|check mark|clip path|fill rule"
+    r"|icon compare)\.?",
+    re.IGNORECASE,
+)
+_ICON_WORD_RE = re.compile(r"\bicon\b", re.IGNORECASE)
+
+# Navigation / chrome phrases that carry no descriptive value.
+_BOILERPLATE: tuple[str, ...] = (
+    "skip to main content",
+    "skip to content",
+    "processing...",
+    "loading...",
+    "back to top",
+    "cookie",
+    "menu",
+    "close",
+    "search",
+    "newsletter",
+    "subscribe",
+)
+
+
+def _clean_text(markdown: str) -> str:
+    """Strip markdown/HTML noise and boilerplate, returning readable prose.
+
+    Removes images, link targets (keeping link text), bare URLs, markdown
+    symbols, and common navigation phrases, then collapses whitespace.
+
+    Args:
+        markdown: Raw scraped markdown.
+
+    Returns:
+        Cleaned single-line prose (may be empty if the page was all chrome).
+    """
+    text = _IMAGE_RE.sub(" ", markdown)
+    text = _LINK_RE.sub(r"\1", text)
+    text = _URL_RE.sub(" ", text)
+    text = _SVG_NOISE_RE.sub(" ", text)
+    text = _ICON_WORD_RE.sub(" ", text)
+    text = _MD_SYMBOLS_RE.sub(" ", text)
+    lowered = text.lower()
+    for phrase in _BOILERPLATE:
+        if phrase in lowered:
+            text = re.sub(re.escape(phrase), " ", text, flags=re.IGNORECASE)
+    return _WS_RE.sub(" ", text).strip()
 
 
 def _unwrap(payload: dict) -> dict:
@@ -34,8 +96,8 @@ def extract_fields(payload: dict) -> dict[str, str]:
         payload: Raw Firecrawl response JSON for one page.
 
     Returns:
-        A dict with keys ``title``, ``markdown``, ``hours``, ``fee``, ``url``.
-        Missing values are empty strings.
+        A dict with keys ``title``, ``markdown`` (raw), ``text`` (cleaned prose),
+        ``hours``, ``fee``, ``url``. Missing values are empty strings.
     """
     data = _unwrap(payload)
     metadata = data.get("metadata", {}) if isinstance(data.get("metadata"), dict) else {}
@@ -50,6 +112,7 @@ def extract_fields(payload: dict) -> dict[str, str]:
     return {
         "title": title,
         "markdown": markdown.strip(),
+        "text": _clean_text(markdown),
         "hours": hours_match.group(1).strip() if hours_match else "",
         "fee": fee_match.group(1).strip() if fee_match else "",
         "url": source_url,

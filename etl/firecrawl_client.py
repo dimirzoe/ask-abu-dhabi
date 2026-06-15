@@ -44,7 +44,13 @@ class FirecrawlClient:
             "Authorization": f"Bearer {self._settings.firecrawl_api_key}",
             "Content-Type": "application/json",
         }
-        payload = {"url": url, "formats": ["markdown", "html"]}
+        # onlyMainContent strips nav/header/footer/icon chrome at the source,
+        # which is far more reliable than regex-cleaning it out afterwards.
+        payload = {
+            "url": url,
+            "formats": ["markdown"],
+            "onlyMainContent": True,
+        }
 
         try:
             response = requests.post(

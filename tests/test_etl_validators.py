@@ -49,5 +49,37 @@ def test_too_few_keywords_fails():
     assert "too few keywords" in reasons
 
 
+def test_bare_numeric_hours_rejected():
+    valid, reasons = validate_attraction(_make(hours="0-94"))
+    assert not valid
+    assert "hours not a real time" in reasons
+
+
+def test_markup_artifacts_in_context_rejected():
+    bad = "Visit us ![logo](http://x/l.png) and [book here](http://x/book) today now"
+    valid, reasons = validate_attraction(_make(context=bad))
+    assert not valid
+    assert "context contains markup artifacts" in reasons
+
+
+def test_context_without_prose_rejected():
+    # Long enough to pass the length check, but no real words.
+    digits = "12 34 56 78 90 11 22 33 44 55 66 77 88 99 00 12 34 56 78 90"
+    valid, reasons = validate_attraction(_make(context=digits))
+    assert not valid
+    assert "context lacks prose" in reasons
+
+
+def test_error_page_context_rejected():
+    bad = "404 Page was not Found. The page you are trying to access does not exist here."
+    valid, reasons = validate_attraction(_make(context=bad))
+    assert not valid
+    assert "context looks like an error/redirect page" in reasons
+
+
+def test_real_clock_hours_accepted():
+    assert is_valid(_make(hours="09:00 AM - 09:00 PM")) is True
+
+
 def test_is_valid_convenience():
     assert is_valid(_make()) is True

@@ -13,22 +13,35 @@ EN and AR share the structure but use translated section headers.
 
 from __future__ import annotations
 
-from core.schema import Attraction, Language, Persona
+from core.schema import Attraction, Language, Message, Persona, Role
 
-# --- Section headers per language --------------------------------------------
-_HEADERS: dict[Language, list[str]] = {
-    Language.EN: [
-        "1. Direct Answer",
-        "2. Key Info (Hours · Fee · Location · Duration)",
-        "3. Official Link",
-        "4. What's Next",
-    ],
-    Language.AR: [
-        "١. الإجابة المباشرة",
-        "٢. معلومات أساسية (المواعيد · الرسوم · الموقع · المدة)",
-        "٣. الرابط الرسمي",
-        "٤. الخطوة التالية",
-    ],
+# --- KB-first + AI-fallback grounding clauses --------------------------------
+_GROUNDING_STRICT = {
+    Language.EN: (
+        "Use ONLY the facts in the provided knowledge context; if a detail is "
+        "unknown, say to check the official site."
+    ),
+    Language.AR: (
+        "استخدم فقط الحقائق الواردة في السياق؛ وإن لم تتوفر معلومة فانصح "
+        "بمراجعة الموقع الرسمي."
+    ),
+}
+_GROUNDING_FALLBACK = {
+    Language.EN: (
+        "Prioritise the facts in the provided knowledge context. If the context "
+        "lacks a detail the visitor needs (e.g. their nationality's visa rule, a "
+        "specific price), you MAY use your general knowledge of Abu Dhabi and the "
+        "UAE — be accurate, do not invent exact figures, and add a brief note to "
+        "verify time-sensitive details (fees, hours, visa rules) on the official "
+        "site."
+    ),
+    Language.AR: (
+        "أعطِ الأولوية للحقائق الواردة في السياق. وإن لم يتضمّن السياق معلومة "
+        "يحتاجها الزائر (مثل قاعدة التأشيرة حسب الجنسية أو سعر محدّد)، يمكنك "
+        "الاستعانة بمعرفتك العامة عن أبوظبي والإمارات — كن دقيقًا، ولا تختلق "
+        "أرقامًا، وأضف ملاحظة موجزة بالتحقق من التفاصيل المتغيّرة (الرسوم، "
+        "المواعيد، قواعد التأشيرة) على الموقع الرسمي."
+    ),
 }
 
 # --- Persona tone guidance ----------------------------------------------------
@@ -53,65 +66,138 @@ _LANG_INSTRUCTION: dict[Language, str] = {
 }
 
 
-def build_system_prompt(language: Language) -> str:
-    """Return the system prompt enforcing the 4-section structure.
+def build_system_prompt(
+    language: Language, allow_general_knowledge: bool = False
+) -> str:
+    """Return the system prompt for a narrative-paragraph + facts-table answer.
+
+    The reply is: (1) a short engaging paragraph (vibe, cultural tips, what to
+    expect, closing with the nudge's next step) that does NOT repeat the table
+    facts, then (2) a Markdown table of Hours/Entry Fee/Location/Duration. No
+    URL — the interface renders the official link as a button.
 
     Args:
         language: Target response language.
+        allow_general_knowledge: When True, permit KB-first + AI fallback (the
+            model may fill gaps from its own knowledge with a verify note); when
+            False, restrict answers strictly to the knowledge base.
 
     Returns:
         A system prompt string in the requested language.
     """
-    headers = _HEADERS[language]
+    grounding = (
+        _GROUNDING_FALLBACK[language]
+        if allow_general_knowledge
+        else _GROUNDING_STRICT[language]
+    )
     if language == Language.AR:
         return (
-            "أنت «اسأل أبوظبي»، مساعد سياحي خبير بإمارة أبوظبي. "
-            "استخدم فقط الحقائق الواردة في سياق المعرفة المقدَّم. "
-            "إن لم تتوفر المعلومة، انصح بزيارة الموقع الرسمي. "
-            "يجب أن يتبع ردك هذا الهيكل بالماركداون وبأربعة أقسام بالضبط:\n"
-            f"## {headers[0]}\n## {headers[1]}\n## {headers[2]}\n## {headers[3]}\n"
-            "اجعل القسم الرابع مطابقًا تمامًا لنص الدعوة المقدَّم دون تغيير."
+            "أنت مساعد سفر محترف لـ«اسأل أبوظبي». قدّم معلومات مفيدة وموجزة "
+            f"ومنظَّمة عن أبوظبي. {grounding} استعن أيضًا بسياق المحادثة السابق "
+            "عند الإجابة عن أسئلة المتابعة.\n\n"
+            "نسِّق كل إجابة بهذا الشكل بالضبط:\n"
+            "١) فقرة سردية موجزة وجذّابة (جملتان إلى ثلاث) تصف أجواء المكان "
+            "ونصائح ثقافية مهمة (مثل قواعد اللباس) وما يتوقعه الزائر، وتُختَتم "
+            "بخطوة الزيارة التالية المقترحة من نص الدعوة. لا تكرّر في هذه الفقرة "
+            "المواعيد أو الرسوم أو الموقع أو المدة — فمكانها الجدول فقط.\n"
+            "٢) بعد الفقرة مباشرةً، جدول ماركداون يبدأ بهذا العنوان:\n"
+            "| الميزة | التفاصيل |\n| :--- | :--- |\n"
+            "اختر من 3 إلى 5 صفوف تناسب السؤال، دون إقحام صفوف غير ذات صلة:\n"
+            "   • للمعلم/المكان: المواعيد، رسوم الدخول، الموقع، المدة.\n"
+            "   • للمواصلات أو «كيف أصل»: المسارات، الأجرة، أقرب محطة، مدة الرحلة.\n"
+            "   • للتأشيرة/الدخول: الأهلية، التكلفة، مكان التقديم، مدة الصلاحية.\n"
+            "املأ كل صف من السياق (أو من معرفتك العامة إن سُمح بذلك)، ولا تكرّر هذه "
+            "الحقائق في الفقرة.\n"
+            "٣) لا تكتب أي رابط أو نص «الموقع الرسمي» — التطبيق يعرض الرابط كزر "
+            "أسفل الجدول. حافظ على نبرة مهنية ومرحِّبة وموجزة."
         )
     return (
-        "You are 'Ask Abu Dhabi', an expert tourism assistant for the Emirate of "
-        "Abu Dhabi. Use ONLY the facts in the provided knowledge context. If a "
-        "detail is unknown, advise checking the official site. Your reply MUST "
-        "follow this exact 4-section Markdown structure:\n"
-        f"## {headers[0]}\n## {headers[1]}\n## {headers[2]}\n## {headers[3]}\n"
-        "Section 4 must reproduce the provided nudge text verbatim, unchanged."
+        "You are a professional travel assistant for 'Ask Abu Dhabi'. Provide "
+        "helpful, concise, structured information about Abu Dhabi. "
+        f"{grounding} Also use the earlier conversation context to answer "
+        "follow-up questions.\n\n"
+        "Format every answer EXACTLY as:\n"
+        "1) A concise, engaging narrative paragraph (2-3 sentences): the vibe of "
+        "the place, key cultural tips (e.g. dress code), and what to expect; end "
+        "it with the suggested next step from the provided nudge. Do NOT repeat "
+        "the hours, fee, location, or duration here — those belong only in the "
+        "table.\n"
+        "2) Immediately after, a Markdown table that starts with this header:\n"
+        "| Feature | Details |\n| :--- | :--- |\n"
+        "Choose 3-5 rows whose labels best fit the question — never force "
+        "irrelevant rows:\n"
+        "   • For a place/attraction: Hours, Entry Fee, Location, Duration.\n"
+        "   • For transport or 'how to get there': Routes, Fare, Nearest Stop, "
+        "Travel Time.\n"
+        "   • For visa/entry: Eligibility, Cost, Where to Apply, Validity.\n"
+        "Fill each row from the knowledge context (or general knowledge if "
+        "allowed). Do NOT repeat those facts in the paragraph.\n"
+        "3) Do NOT output any URL or 'Official Site' text — the interface shows "
+        "the official link as a button below the table. Keep the tone "
+        "professional, welcoming, and concise."
     )
 
 
-def _format_context(attraction: Attraction | None) -> str:
-    """Render the knowledge context block for the prompt."""
-    if attraction is None:
-        return "No specific attraction matched. Answer generally about Abu Dhabi."
-    return (
-        f"Title: {attraction.title}\n"
+def _format_history(history: list[Message], max_turns: int = 6) -> str:
+    """Render recent conversation turns for context (assistant turns truncated)."""
+    if not history:
+        return ""
+    lines: list[str] = []
+    for msg in history[-max_turns:]:
+        speaker = "User" if msg.role == Role.USER else "Assistant"
+        text = msg.content.strip().replace("\n", " ")
+        if msg.role == Role.ASSISTANT and len(text) > 300:
+            text = text[:300] + "…"
+        lines.append(f"{speaker}: {text}")
+    return "--- Conversation so far ---\n" + "\n".join(lines) + "\n--- End conversation ---\n\n"
+
+
+def _format_one(attraction: Attraction, *, primary: bool) -> str:
+    """Render a single attraction's facts as a context block."""
+    label = "PRIMARY topic" if primary else "RELATED topic (use if relevant)"
+    block = (
+        f"[{label}] {attraction.title}\n"
         f"Category: {attraction.category}\n"
         f"Location: {attraction.location}\n"
         f"Hours: {attraction.hours}\n"
         f"Fee: {attraction.fee}\n"
         f"Typical duration: {attraction.duration}\n"
-        f"Official URL: {attraction.url}\n"
         f"Context: {attraction.context}\n"
-        f"Nudge (use VERBATIM in section 4): {attraction.nudge}"
+    )
+    if primary:
+        block += (
+            f"Nudge (suggested next step — close the narrative paragraph with it): "
+            f"{attraction.nudge}\n"
+        )
+    return block
+
+
+def _format_context(attractions: list[Attraction]) -> str:
+    """Render the knowledge context block for one or more matched attractions."""
+    if not attractions:
+        return "No specific attraction matched. Answer generally about Abu Dhabi."
+    return "\n".join(
+        _format_one(a, primary=(i == 0)) for i, a in enumerate(attractions)
     )
 
 
 def build_user_prompt(
     query: str,
-    attraction: Attraction | None,
+    attractions: list[Attraction],
     language: Language,
     persona: Persona,
+    history: list[Message] | None = None,
 ) -> str:
-    """Build the user-turn prompt combining query, persona, and KB context.
+    """Build the user-turn prompt combining query, persona, KB context, history.
 
     Args:
         query: The raw user query.
-        attraction: Matched attraction, or None for a general answer.
+        attractions: Matched attractions (primary first), or empty for a general
+            answer. A second entry is included for cross-topic questions (e.g.
+            transport + a destination).
         language: Target response language.
         persona: Visitor persona controlling tone and emphasis.
+        history: Prior conversation turns for follow-up context.
 
     Returns:
         The fully assembled user prompt string.
@@ -119,7 +205,8 @@ def build_user_prompt(
     return (
         f"{_LANG_INSTRUCTION[language]}\n"
         f"Persona guidance: {_PERSONA_TONE[persona]}\n\n"
-        f"--- Knowledge context ---\n{_format_context(attraction)}\n"
+        f"{_format_history(history or [])}"
+        f"--- Knowledge context ---\n{_format_context(attractions)}\n"
         f"--- End context ---\n\n"
         f"User question: {query}"
     )
