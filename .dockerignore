@@ -1,0 +1,43 @@
+# Keep secrets, local envs, and bulky/irrelevant files out of the build context
+# and image. Runtime secrets are injected via docker-compose `env_file: .env`.
+
+# --- Secrets & local env ---
+.env
+*.env
+!.env.example
+.streamlit/secrets.toml
+
+# --- Virtualenvs (wrong-platform binaries; never copy into the image) ---
+.venv/
+venv/
+env/
+
+# --- VCS & CI ---
+.git/
+.gitignore
+.github/
+
+# --- Generated data (KB is rebuilt/baseline; db is created at runtime) ---
+data/knowledge_base.json
+data/analytics.db
+data/*.db-journal
+data/*.tmp
+
+# --- Python caches ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Tests & docs not needed at runtime ---
+tests/
+TEST_QUESTIONS.md
+
+# --- Editor / OS ---
+.vscode/
+.idea/
+.DS_Store
